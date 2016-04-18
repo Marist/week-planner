@@ -22,7 +22,8 @@
 				endHour : 20,
 				columnsHeaderHeight : 30,
 				preventOverlapping : true,
-				slots : []
+				slots : [],
+				removeClass: 'icon-remove-sign'
 			};
 
 		// The actual plugin constructor
@@ -181,7 +182,7 @@
 
 				// Add controls
 				var controls = $('<div class="controls"></div>').appendTo(slot),
-					close = $('<i class="icon-remove-sign" />').appendTo(controls);
+					close = $('<i class="'+this.settings.removeClass+'" />').appendTo(controls);
 
 				close.bind('click', function(){
 					// Get day
