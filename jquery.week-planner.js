@@ -23,7 +23,8 @@
 				columnsHeaderHeight : 30,
 				preventOverlapping : true,
 				slots : [],
-				removeClass: 'icon-remove-sign'
+				removeClass: 'icon-remove-sign',
+				hourFormat: 'HH:mm'
 			};
 
 		// The actual plugin constructor
@@ -169,12 +170,11 @@
 			updateInfo : function(slot){
 				slot = slot || this.drawingSlot;
 
-				// Get time
-				var time = this.getTimeForSlot(slot),
-					timeEnd = time.start + time.duration;
+				// Get date
+				var date = this.getDateForSlot(slot);
 
 				// Update display
-				$('.slot-info', slot).html((Math.floor(time.start / 60) < 10 ? '0':'')+Math.floor(time.start / 60)+'h'+(time.start%60 < 10 ? '0':'')+time.start%60+' - '+(Math.floor(timeEnd / 60) < 10 ? '0':'')+Math.floor(timeEnd / 60)+'h'+(timeEnd%60 < 10 ? '0':'')+timeEnd%60);
+				$('.slot-info', slot).html(date.start.format(this.settings.hourFormat) + ' - ' + date.end.format(this.settings.hourFormat));
 			},
 
 			setControls : function(slot){
@@ -214,6 +214,16 @@
 					duration : slot.outerHeight() / this.settings.slotHeight * (60 / this.settings.timeSlotsPerHour)
 				}
 			},
+			
+			getDateForSlot: function(slot){
+				var t = this.getTimeForSlot(slot);
+
+				// Get values from dimension :)
+				return {
+					start : moment(slot.start * 1000),
+					end : moment((slot.start + slot.duration) * 1000)
+				}
+			}
 
 			detectOverlapping : function(slot){
 				slot = slot || this.drawingSlot;
