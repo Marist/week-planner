@@ -32,6 +32,9 @@
 
 			this.element = element;
 			this.settings = $.extend({}, defaults, options);
+			if (typeof this.settings.slotClass == 'undefined' && $(element).data('slotClass')){
+				this.settings.slotClass = $(element).data('slotClass');
+			}
 			this._defaults = defaults;
 			this._name = pluginName;
 			
@@ -39,6 +42,9 @@
 			this.columnsWrapper = null;
 			this.drawingSlot = null;
 			this.slots = {};
+			this.changedCallbacks = [];
+			this.initCallbacks = [];
+			this.initialized = false;
 
 			// Start plugin
 			this.init();
@@ -55,6 +61,9 @@
 
 				// Set zone creation events
 				this.setEvents();
+				
+				this.fireInit();
+				this.initialized = true;
 			},
 
 			createDOMStructure : function(){
@@ -149,6 +158,9 @@
 
 								// Enable events
 								this.drawingSlot.removeClass('drawing');
+								
+								this.fireChanged();
+								
 							} else {
 								this.drawingSlot.remove();
 								this.drawingSlot = null;
@@ -202,6 +214,7 @@
 					$.each(this.slots[day], function(i, otherSlot){
 						this.detectOverlapping(otherSlot.slot);
 					}.bind(this));
+					this.fireChanged();
 				}.bind(this));
 			},
 
@@ -216,14 +229,29 @@
 			},
 			
 			getDateForSlot: function(slot){
-				var t = this.getTimeForSlot(slot);
-
-				// Get values from dimension :)
+				return(this.getDateForTime(this.getTimeForSlot(slot)));
+			},
+			
+			getDateForTime: function(time){
 				return {
-					start : moment(slot.start * 1000),
-					end : moment((slot.start + slot.duration) * 1000)
+					start : moment(this.minutesToHourString(time.start), 'HH:mm'),
+					end : moment(this.minutesToHourString(time.start + time.duration), 'HH:mm')
 				}
-			}
+			},
+			
+			minutesToHourString(minutes){
+				var str = '';
+				var hours = parseInt(minutes/60);
+				if (hours < 10){
+					str += '0';
+				}
+				str += hours+":";
+				if (minutes - (hours * 60) < 10){
+					str += "0";
+				}				
+				str += (minutes - (hours * 60));
+				return str;
+			},
 
 			detectOverlapping : function(slot){
 				slot = slot || this.drawingSlot;
@@ -312,6 +340,21 @@
 
 				// Enable controls
 				this.setControls(slot);
+				
+				this.fireChanged();
+			},
+			
+			fireChanged: function(){
+				this.changedCallbacks.forEach(function(callback){
+					callback.call(this);
+				});
+			},
+			
+			fireInit: function(){
+				this.initCallbacks.forEach(function(callback){
+					callback.call(this);
+				});
+				this.initCallbacks = [];
 			},
 
 			// Public method as specified below
@@ -339,6 +382,9 @@
 			getSlots : function(){
 				// Clean slots
 				var slots = {};
+				
+				var slotClass = typeof this.settings.slotClass != 'undefined' ? this.settings.slotClass : false;
+				var self = this;
 
 				$.each(this.slots, function(key, day){
 					slots[key] = {
@@ -347,21 +393,39 @@
 						},
 						periods : []
 					};
+					if (slotClass){
+						slots[key]['class'] = slotClass;
+					}
 
 					$.each(day, function(i, slot){
-						slots[key].periods.push({
-							hour : (Math.floor(slot.start / 60) < 10 ? '0'+Math.floor(slot.start / 60) : Math.floor(slot.start / 60))+':'+(slot.start%60 < 10 ? '0'+slot.start%60 : slot.start%60),
-							duration : slot.duration
-						});
+						slots[key].periods.push(self.getDateForTime(slot));
 					});
 				});
 
 				return slots;
+			},
+			
+			onSlotsChanged: function(callback){
+				this.changedCallbacks.push(callback);
+			},
+			
+			onInitialized: function(callback){
+				this.initCallbacks.push(callback);
+				if (this.initialized)
+					this.fireInit();
+			},
+			
+			clear: function(){
+				$.each(this.slots, function(){
+					$.each(this, function(){
+						this.slot.find('.icon-remove-sign').trigger('click');
+					});
+				});
 			}
 		};
 
 		// Set a list of public methods
-		var public_methods = ['setSlots', 'getSlots'];
+		var public_methods = ['setSlots', 'getSlots', 'onSlotsChanged', 'onInitialized', 'clear'];
 
 		// Lightweight plugin wrapper preventing multiple instantiations
 		$.fn[pluginName] = function(methodOrOptions, options, extraoptions){
